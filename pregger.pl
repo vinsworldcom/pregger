@@ -29,14 +29,16 @@ my %opt;
 my ( $opt_help, $opt_man, $opt_versions );
 
 GetOptions(
-    'bare!'      => \$opt{bare},
-    'capture!'   => \$opt{capture},
-    'explain!'   => \$opt{explain},
-    'm|matches!' => \$opt{matches},
-    'perlish!'   => \$opt{perlish},
-    'help!'      => \$opt_help,
-    'man!'       => \$opt_man,
-    'versions!'  => \$opt_versions
+    ''      => \$opt{interact}, # lonesome dash is interactive test from STDIN
+    'bare!' => \$opt{bare},
+    'capture!'     => \$opt{capture},
+    'explain!'     => \$opt{explain},
+    'm|matches!'   => \$opt{matches},
+    'M|multiline!' => \$opt{multiline},
+    'perlish!'     => \$opt{perlish},
+    'help!'        => \$opt_help,
+    'man!'         => \$opt_man,
+    'versions!'    => \$opt_versions
 ) or pod2usage( -verbose => 0 );
 
 pod2usage( -verbose => 1 ) if defined $opt_help;
@@ -79,10 +81,12 @@ if ( !@ARGV ) {
 }
 
 ### DEFAULTS
+my $EXIT   = 0;
 my $HEADER = "Testing: %-30s : ";
 
-$opt{perlish} = $opt{perlish} || 0;
-$opt{bare}    = $opt{bare}    || 0;
+$opt{perlish}   = $opt{perlish}   || 0;
+$opt{multiline} = $opt{multiline} || 0;
+$opt{bare}      = $opt{bare}      || 0;
 
 # --bare implies --matches if no match argument provided
 # and overrides -c, -e (-p is part of if/elsif display option)
@@ -127,21 +131,51 @@ if ( $opt{explain} ) {
     print "\n";
 }
 
-if ( defined $ARGV[1] ) {
+if ( defined $ARGV[1] or defined $opt{interact} ) {
 
-    my @tests = getTests();
+    my @tests;
+
+    # Get ARGV first.
+    if ( $ARGV[1] ) {
+        @tests = getArgTests( \@ARGV );
+    }
+
+    # If interactive, this will override all other ARGV tests from above
+  INTERACT:
+    if ( $opt{interact} ) {
+        @tests = getIntTests();
+    }
+
+    # SIG{INT} seems unreliable.
+    # exit if EXIT set
+    exit if $EXIT;
 
     for my $test (@tests) {
+        my $MATCH = 0;
         if ( $test =~ $regex ) {
+
+            $MATCH = 1;
 
             # if matches not provided or --matches
             if ( ( !defined $opt{matches} ) or $opt{matches} ) {
                 if ( $opt{bare} ) {
+                    print "----------\n"
+                      if ( $opt{multiline} and ( $test =~ /\n/ ) );
                     print "$test\n";
+                    print "----------\n"
+                      if ( $opt{multiline} and ( $test =~ /\n/ ) );
                 } elsif ( $opt{perlish} ) {
+                    if ( $opt{multiline} and ( $test =~ /\n/ ) ) {
+                        $test =~ s/\n/\\n/g;
+                    }
                     print "\"$test\" =~ /$regex/\n";
                 } else {
-                    printf $HEADER . "MATCH\n", $test;
+                    if ( $opt{multiline} and ( $test =~ /\n/ ) ) {
+                        printf $HEADER . "MATCH\n", "";
+                        print "$test\n";
+                    } else {
+                        printf $HEADER . "MATCH\n", $test;
+                    }
                 }
 
                 # print captures
@@ -180,18 +214,39 @@ if ( defined $ARGV[1] ) {
             # if matches not provided or --nomatches
             if ( ( !defined $opt{matches} ) or !$opt{matches} ) {
                 if ( $opt{bare} ) {
+                    print "----------\n"
+                      if ( $opt{multiline} and ( $test =~ /\n/ ) );
                     print "$test\n";
+                    print "----------\n"
+                      if ( $opt{multiline} and ( $test =~ /\n/ ) );
                 } elsif ( $opt{perlish} ) {
+                    if ( $opt{multiline} and ( $test =~ /\n/ ) ) {
+                        $test =~ s/\n/\\n/g;
+                    }
                     print "\"$test\" !~ /$regex/\n";
                 } else {
-                    printf $HEADER . "NO MATCH\n", $test;
+                    if ( $opt{multiline} and ( $test =~ /\n/ ) ) {
+                        printf $HEADER . "NO MATCH\n", "";
+                        print "$test\n";
+                    } else {
+                        printf $HEADER . "NO MATCH\n", $test;
+                    }
                 }
             }
         }
-        if ( $opt{capture} ) {
+
+        # complicated, but required.
+        # only add newlines if capture in effect,
+        #   but only if we find a match or we don't care about no/match or --match
+        if ( $opt{capture}
+            and ( $MATCH or ( !defined $opt{matches} ) or !$opt{matches} ) ) {
             print "\n";
         }
+    }
 
+    # defined since we may be in here from ARGV and just ready to exit
+    if ( defined $opt{interact} ) {
+        goto INTERACT;
     }
 }
 
@@ -199,25 +254,34 @@ if ( defined $ARGV[1] ) {
 # Start Subs
 ##################################################
 
-sub getTests {
-    my @args = @ARGV;
-    shift @args;
+sub getArgTests {
+    my ($args) = @_;
+    shift @{$args};
 
     my @tests;
-    for my $test (@args) {
+    for my $test ( @{$args} ) {
 
         # try to open as file first
         if ( -e $test ) {
             open my $IN, '<', $test;
             my @tTests;
+            my $line;    # for multiline
             while (<$IN>) {
+                if ( $opt{multiline} ) {
+                    $line .= $_;
+                } else {
 
-                # skip blank lines and #comments
-                next if ( ( $_ =~ /^[\n\r]+$/ ) or ( $_ =~ /^#/ ) );
-                chomp $_;
+                    # skip blank lines and #comments
+                    next if ( ( $_ =~ /^[\n\r]+$/ ) or ( $_ =~ /^#/ ) );
+                    chomp $_;
 
-                # push to temp array
-                push @tTests, $_;
+                    # push to temp array
+                    push @tTests, $_;
+                }
+            }
+            if ( $opt{multiline} ) {
+                chomp $line;
+                push @tTests, $line;
             }
 
             # clean up - add temp tests to final test array
@@ -231,6 +295,42 @@ sub getTests {
     }
     return @tests;
 }
+
+sub getIntTests {
+
+    # SIG{INT} seems unreliable.
+    # Set EXIT flag, try to exit directly
+    $SIG{INT} = sub {
+        $EXIT = 1;
+        exit;
+    };
+
+    my $line;
+    print "Enter test> ";
+
+    if ( $opt{multiline} ) {
+        while (<STDIN>) {
+            $line .= $_;
+        }
+    } else {
+        $line = <STDIN>;
+    }
+
+    # SIG{INT} seems unreliable.
+    # Use the else to continue otherwise, fall through
+    # in this sub leads to exit.
+    if ($EXIT) {
+        exit;
+    } else {
+        chomp $line;
+        return $line;
+    }
+    exit;
+}
+
+##################################################
+# End Program
+##################################################
 
 __END__
 
@@ -265,6 +365,17 @@ capture groups are used, it can display the capture groups if matched.
 
 =head1 OPTIONS
 
+ -            Single dash means interactive mode.  Allow user to 
+              enter test strings interactively and provide feedback 
+              immediately.  Overrides all other command line 'teststr'
+              arguments.
+              
+              If -M, end input and start processing with end of input 
+              character:
+                Windows : CTRL-z
+                Unix    : CTRL-d
+              Use CTRL-c to terminate session.
+
  -b           Only print 'teststr' and only if match.  Implies -m.
  --bare       Use '--nomatches' to print only 'teststr' that don't 
               match.  Overrides -c, -e, -p.
@@ -280,6 +391,11 @@ capture groups are used, it can display the capture groups if matched.
  -m           Print only matches.
  --matches    Use '--nomatches' to print only no matches.
               Option not used prints both matches and no matches.
+
+ -M           Allow multiline test strings (containing '\n').
+ --multiline  If enabled, files on command line are read as a single 
+              test string rather than individual lines as separate 
+              test strings.  If interactive mode, see '-'.
 
  -p           Output match notification in more "Perl-ish" way:
  --perlish      MATCH    ==> "teststr" =~ /regex/
