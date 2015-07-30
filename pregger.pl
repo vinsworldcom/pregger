@@ -508,6 +508,14 @@ Assume a file 'file.txt' containing:
   hello
   foo
 
+=head1 SEE ALSO
+
+The Perl Regex Tester:
+
+L<http://www.perlmonks.org/?node_id=979754>
+
+L<http://retester.herokuapp.com/>
+
 =head1 LICENSE
 
 This software is released under the same terms as Perl itself.
