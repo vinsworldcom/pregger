@@ -36,6 +36,7 @@ GetOptions(
     'e|explain!'   => \$opt{explain},
     'm|matches!'   => \$opt{matches},
     'M|multiline!' => \$opt{multiline},
+    'nocapture'    => \$opt{nocapture},
     'p|perlish!'   => \$opt{perlish},
     'help!'        => \$opt_help,
     'man!'         => \$opt_man,
@@ -90,6 +91,12 @@ $opt{perlish}   = $opt{perlish}   || 0;
 $opt{multiline} = $opt{multiline} || 0;
 $opt{bare}      = $opt{bare}      || 0;
 
+# nocapture needed since + args can't be --no-prefixed
+# this overrides any value of capture already set
+if ( defined $opt{nocapture} ) {
+    $opt{capture} = 0;
+}
+
 # --bare implies --matches if no match argument provided
 # and overrides -c, -e (-p is part of if/elsif display option)
 if ( $opt{bare} ) {
@@ -100,7 +107,7 @@ if ( $opt{bare} ) {
     $opt{explain} = 0;
 }
 
-# Capture / Explain by default if not already spec'd
+# Capture / Explain on by default only if not already spec'd
 if ( !defined $opt{capture} ) {
     $opt{capture} = 1;
 }
@@ -117,17 +124,26 @@ if ( defined $opt{matches} and !$opt{matches} ) {
 ### END DEFAULTS
 
 # REGEX to evaluate
-my $regex = $ARGV[0];
-# strip leading / if found
-$regex =~ s/^\///;
-# strip trailing / if found
-$regex =~ s/\/$//;
-# lexically scoped, use conditionally here
-if ( $opt{debug} ) {
-    use re qw(Debug MATCH);
-    $regex = qr/$regex/;
+my $u_regex = $ARGV[0];    # user regex
+my $t_regex;               # tested regex
+my $regex;                 # compiled regex
+my $modify;
+
+# Check user input pattern to validate and separate modifiers if any
+if ( $u_regex !~ /^\/(.*)\/([imsx]*)$/ ) {
+    print "$0: not a valid regex - `$u_regex'\n";
+    exit;
 } else {
-    $regex = qr/$regex/;
+    $t_regex = $1;
+    $modify = $2 if defined $2;
+}
+
+# lexically scoped, use conditionally here and need to keep $regex qr in same scope
+if ( $opt{debug} ) {
+    use re qw(Debug DUMP MATCH);
+    $regex = eval "qr/$t_regex/$modify";
+} else {
+    $regex = eval "qr/$t_regex/$modify";
 }
 
 if ( $opt{explain} ) {
