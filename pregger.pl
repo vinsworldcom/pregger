@@ -10,7 +10,7 @@ $VERSION = "1.0 - 29 JUL 2015";
 
 use strict;
 use warnings;
-use Getopt::Long qw(:config no_ignore_case);    #bundling
+use Getopt::Long qw(:config no_ignore_case bundling);
 use Pod::Usage;
 
 ##################################################
@@ -29,13 +29,14 @@ my %opt;
 my ( $opt_help, $opt_man, $opt_versions );
 
 GetOptions(
-    ''      => \$opt{interact}, # lonesome dash is interactive test from STDIN
-    'bare!' => \$opt{bare},
-    'capture!'     => \$opt{capture},
-    'explain!'     => \$opt{explain},
+    '' => \$opt{interact},    # lonesome dash is interactive test from STDIN
+    'b|bare!'      => \$opt{bare},
+    'c|capture+'   => \$opt{capture},
+    'd|debug!'     => \$opt{debug},
+    'e|explain!'   => \$opt{explain},
     'm|matches!'   => \$opt{matches},
     'M|multiline!' => \$opt{multiline},
-    'perlish!'     => \$opt{perlish},
+    'p|perlish!'   => \$opt{perlish},
     'help!'        => \$opt_help,
     'man!'         => \$opt_man,
     'versions!'    => \$opt_versions
@@ -84,6 +85,7 @@ if ( !@ARGV ) {
 my $EXIT   = 0;
 my $HEADER = "Testing: %-30s : ";
 
+$opt{debug}     = $opt{debug}     || 0;
 $opt{perlish}   = $opt{perlish}   || 0;
 $opt{multiline} = $opt{multiline} || 0;
 $opt{bare}      = $opt{bare}      || 0;
@@ -120,7 +122,13 @@ my $regex = $ARGV[0];
 $regex =~ s/^\///;
 # strip trailing / if found
 $regex =~ s/\/$//;
-$regex = qr/$regex/;
+# lexically scoped, use conditionally here
+if ( $opt{debug} ) {
+    use re qw(Debug MATCH);
+    $regex = qr/$regex/;
+} else {
+    $regex = qr/$regex/;
+}
 
 if ( $opt{explain} ) {
     if ($HAVE_YAPE_Regex_Explain) {
@@ -180,33 +188,27 @@ if ( defined $ARGV[1] or defined $opt{interact} ) {
 
                 # print captures
                 if ( $opt{capture} ) {
-                    if ( defined $1 ) {
-                        print "    \$1 = $1\n";
+                    if ( $opt{capture} == 2 ) {
+                        printf "    \${^PREMATCH}  = %s\n",
+                          defined ${^PREMATCH} ? ${^PREMATCH} : "";
+                        printf "    \${^MATCH}     = %s\n",
+                          defined ${^MATCH} ? ${^MATCH} : "";
+                        printf "    \${^POSTMATCH} = %s\n",
+                          defined ${^POSTMATCH} ? ${^POSTMATCH} : "";
+                        printf "    \${^N}         = %s\n",
+                          defined ${^N} ? ${^N} : "";
+                        printf "    \@-            = (%s)\n", join ",", @-;
+                        printf "    \@+            = (%s)\n", join ",", @+;
                     }
-                    if ( defined $2 ) {
-                        print "    \$2 = $2\n";
-                    }
-                    if ( defined $3 ) {
-                        print "    \$3 = $3\n";
-                    }
-                    if ( defined $4 ) {
-                        print "    \$4 = $4\n";
-                    }
-                    if ( defined $5 ) {
-                        print "    \$5 = $5\n";
-                    }
-                    if ( defined $6 ) {
-                        print "    \$6 = $6\n";
-                    }
-                    if ( defined $7 ) {
-                        print "    \$7 = $7\n";
-                    }
-                    if ( defined $8 ) {
-                        print "    \$8 = $8\n";
-                    }
-                    if ( defined $9 ) {
-                        print "    \$9 = $9\n";
-                    }
+                    print "               \$1 = $1\n" if defined $1;
+                    print "               \$2 = $2\n" if defined $2;
+                    print "               \$3 = $3\n" if defined $3;
+                    print "               \$3 = $4\n" if defined $4;
+                    print "               \$3 = $5\n" if defined $5;
+                    print "               \$3 = $6\n" if defined $6;
+                    print "               \$3 = $7\n" if defined $7;
+                    print "               \$3 = $8\n" if defined $8;
+                    print "               \$3 = $9\n" if defined $9;
                 }
             }
         } else {
@@ -383,6 +385,10 @@ capture groups are used, it can display the capture groups if matched.
  -c           If regex contains capture groupings, print out 
  --capture    the values captured to each grouping if match.  
               On by default; use '--nocapture' to disable.
+              Use multiple times to show more capture information.
+
+ -d           Use 're' module to "Debug MATCH" on the provided 
+ --debug      test strings.
 
  -e           Use YAPE::Regex::Explain to 'explain' the regular 
  --explain    expression.  On by default; use '--noexplain' to 
