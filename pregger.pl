@@ -130,7 +130,7 @@ my $regex;                 # compiled regex
 my $modify;
 
 # Check user input pattern to validate and separate modifiers if any
-if ( $u_regex !~ /^\/(.*)\/([imsx]*)$/ ) {
+if ( $u_regex !~ /^\/(.*)\/([msixpodual]*)$/ ) {
     print "$0: not a valid regex - `$u_regex'\n";
     exit;
 } else {
@@ -409,6 +409,8 @@ capture groups are used, it can display the capture groups if matched.
  -e           Use YAPE::Regex::Explain to 'explain' the regular 
  --explain    expression.  On by default; use '--noexplain' to 
               disable.
+              NOTE:  YAPE::Regex::Explain has LIMITATIONS.  See 
+              the 'perldoc YAPE::Regex::Explain' for information.
 
  -m           Print only matches.
  --matches    Use '--nomatches' to print only no matches.
@@ -532,11 +534,11 @@ Assume a file 'file.txt' containing:
 
 =head1 SEE ALSO
 
+L<YAPE::Regex::Explain>
+
 The Perl Regex Tester:
 
-L<http://www.perlmonks.org/?node_id=979754>
-
-L<http://retester.herokuapp.com/>
+L<http://www.perlmonks.org/?node_id=979754>, L<http://retester.herokuapp.com/>
 
 =head1 LICENSE
 
