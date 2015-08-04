@@ -36,11 +36,11 @@ GetOptions(
     'e|explain!'   => \$opt{explain},
     'm|matches!'   => \$opt{matches},
     'M|multiline!' => \$opt{multiline},
-    'nocapture'    => \$opt{nocapture},
-    'p|perlish!'   => \$opt{perlish},
-    'help!'        => \$opt_help,
-    'man!'         => \$opt_man,
-    'versions!'    => \$opt_versions
+    'nocapture' => \$opt{nocapture}, # nocapture needed since + args can't be --no-prefixed
+    'p|perlish!' => \$opt{perlish},
+    'help!'      => \$opt_help,
+    'man!'       => \$opt_man,
+    'versions!'  => \$opt_versions
 ) or pod2usage( -verbose => 0 );
 
 pod2usage( -verbose => 1 ) if defined $opt_help;
@@ -91,7 +91,6 @@ $opt{perlish}   = $opt{perlish}   || 0;
 $opt{multiline} = $opt{multiline} || 0;
 $opt{bare}      = $opt{bare}      || 0;
 
-# nocapture needed since + args can't be --no-prefixed
 # this overrides any value of capture already set
 if ( defined $opt{nocapture} ) {
     $opt{capture} = 0;
