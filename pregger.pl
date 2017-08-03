@@ -6,7 +6,7 @@
 
 use vars qw($VERSION);
 
-$VERSION = "1.0 - 29 JUL 2015";
+$VERSION = "1.1 - 3 AUG 2017";
 
 use strict;
 use warnings;
@@ -218,12 +218,12 @@ if ( defined $ARGV[1] or defined $opt{interact} ) {
                     print "               \$1 = $1\n" if defined $1;
                     print "               \$2 = $2\n" if defined $2;
                     print "               \$3 = $3\n" if defined $3;
-                    print "               \$3 = $4\n" if defined $4;
-                    print "               \$3 = $5\n" if defined $5;
-                    print "               \$3 = $6\n" if defined $6;
-                    print "               \$3 = $7\n" if defined $7;
-                    print "               \$3 = $8\n" if defined $8;
-                    print "               \$3 = $9\n" if defined $9;
+                    print "               \$4 = $4\n" if defined $4;
+                    print "               \$5 = $5\n" if defined $5;
+                    print "               \$6 = $6\n" if defined $6;
+                    print "               \$7 = $7\n" if defined $7;
+                    print "               \$8 = $8\n" if defined $8;
+                    print "               \$9 = $9\n" if defined $9;
                 }
             }
         } else {
